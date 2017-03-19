@@ -1,0 +1,3 @@
+for someChar in "Hello World":
+    print (someChar)
+
