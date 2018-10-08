@@ -1,29 +1,22 @@
-def three():
-    num = 13195
-    for x in range(num):
-        prime = True
-        for y in range(1,x):
-            if x%y == 0:
-
-                break
-def double():
-    x = 1
-    while x <= 600851475143:
-        x *= 2
-        k = str(x)
-
-
-
-def is_palindrome(my_str):
-    if my_str.__len__() == 0:
-        foo = True
+import mpl
+num = 600851475143
+sqrt = m.sqrt(num)
+potentials = []
+for x in range(int(sqrt+1)):
+    if x == 0 or x == 1 or x % 2 == 0:
+        pass
     else:
-        if my_str[0].upper() == my_str[-1].upper():
-            foo = is_palindrome(my_str[1:-1])
-        else:
-            foo = False
-    return foo
+        if num % x == 0:
+            potentials.append(x)
 
-
-if __name__ == "__main__":
-    double()
+print(potentials)
+prime = True
+finals = []
+for x in potentials:
+    for y in range(2, x):
+        if x%y == 0:
+            prime = False
+            break
+    if prime:
+      finals.append(x)
+print(finals)

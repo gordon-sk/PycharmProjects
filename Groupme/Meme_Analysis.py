@@ -1,135 +1,103 @@
-import matplotlib.pyplot as mp
+from __future__ import division
+import matplotlib.pyplot as plt
 
 # index 0 -- name of groupme
 # index 1 -- date, format YEAR-MONTH-DAY TIME(MILITARY)
 # index 2 -- name of poster
 # index 3 -- message content, an empty string if just an image
 # index 4 -- number of likes
+filename = "morememes.csv"
 
 def main():
-    filename = "Memes.csv"
+
+
     data = open_file(filename)
-    posts_per_person = counting_posts(data)
-    likes_per_person = counting_likes(data)
-    #removed = removal(data)
-    likes_per_post_versus_number_of_posts(posts_per_person, likes_per_person)
-    write_output(posts_per_person, likes_per_person, filename)
+    print "Data read..."
+    print data.__len__()
+    post_count_dict = post_counting(data)
+    likes_count_dict = like_counting(data)
+    avg_likes_dict = avg_likes(post_count_dict, likes_count_dict)
+    graphing(post_count_dict, likes_count_dict, avg_likes_dict)
+    writing(post_count_dict, likes_count_dict, avg_likes_dict)
 
 
-def likes_per_post_versus_number_of_posts(post_counts, like_counts):
-    names, number_of_posts, likes_per_post_avg = [], [], []
-    for x in post_counts:
-        if post_counts[x] > 25 and x != "GroupMe":
-            names.append(x)
-            number_of_posts.append(post_counts[x])
-            try:
-                likes_per_post_avg.append(round((like_counts[x]*1.0)/post_counts[x], 2))
-            except KeyError:
-                pass
-            except ZeroDivisionError:
-                likes_per_post_avg.append(0)
-    print number_of_posts.__len__()
-    print likes_per_post_avg.__len__()
-    print names.__len__()
+def post_counting(data):
+    return_list = {}
+    for x in data:
+        return_list[x[3]] = 0
+    for x in data:
+        return_list[x[3]] = return_list[x[3]] + 1
+    return return_list
 
-    mp.plot(number_of_posts, likes_per_post_avg, 'ro')
-    for x in range(names.__len__()-1):
+
+def like_counting(data):
+    return_list = {}
+    for x in data:
+        return_list[x[3]] = 0
+    for x in data:
+        return_list[x[3]] = return_list[x[3]] + int(x[5])
+    return return_list
+
+
+def avg_likes(posts, likes):
+    return_list = {}
+    for name in posts:
         try:
-            mp.annotate(names[x], xy=(number_of_posts[x], likes_per_post_avg[x]))
-        except ValueError:
-            pass
-    mp.ylabel("avg likes per post")
-    mp.xlabel("total number of posts")
-    mp.show()
+            return_list[name] = round(likes[name] / posts[name], 2)
+        except ZeroDivisionError:
+            return_list[name] = 0
+    return return_list
+
+
+def graphing(posts, likes, avgs):
+    x_posts, y_likes = [], []
+    for name in posts:
+        x_posts.append(posts[name])
+        y_likes.append(avgs[name])
+
+
+    plt.plot(x_posts, y_likes, 'go')
+    plt.savefig("graphed_data.png")
+
+
+def writing(posts, likes, avgs):
+    newfile = open(filename[:-4] + "_writeup.txt", 'w')
+    newfile.write("Meme Analysis\n\n")
+    newdict = {}
+    for name in avgs:
+        newdict[avgs[name]] = name
+    print newdict
+
+    for avg in sorted(newdict.keys(), reverse=True):
+        name = newdict[avg]
+        if posts[name] > 10:
+            newfile.write("\nName: " + name)
+            newfile.write("\nPost Count: " + str(posts[name]))
+            newfile.write("\nTotal Likes: " + str(likes[name]))
+            newfile.write("\nAvg likes/post: " + str(avgs[name]) + "\n\n")
+
+    newfile.close()
+
 
 
 def open_file(filename):
     data_file = open(filename)
-    readable = data_file.read().splitlines()
-    data_file.close()    # One of my profs once told me if we didn't include this, it was sloppy code, so here it is
-    memes, retard_data = [], []           # Our master list of data
-    for x in range(readable.__len__()):     # Here we separate post data
-        sub = readable[x].split(',')        # splitting space-separated data
-        if sub.__len__() != 5:
-            retard_data.append(sub)
-        else:
-            memes.append(sub)                   # Adding the sublist to our master list
-    return memes
-
-
-def counting_posts(data):
-    names = dict()
-    for x in data:
-        if x.__len__() >= 3:
-            if names.has_key(str(x[2])):
-                names[str(x[2])] += 1
-            else:
-                names[str(x[2])] = 0
-    return names
-
-
-def counting_likes(data):
-    names = dict()
-    for x in data:
-        if x.__len__() == 5:
-            if names.has_key(str(x[2])):
-                try:
-                    names[str(x[2])] += int(x[4])
-                except ValueError:
-                    pass
-            else:
-                names[str(x[2])] = 0
-    return names
-
-
-def removal(data):
-    removals = []
-    for x in data:
-        if x.__len__() >= 5:
-            if x[3].__contains__("removed"):
-                removals.append(x[3].split(' '))
-    for x in removals:
-        if x.__contains__('from') or x.__contains__('the') or x.__contains__('group'):
-            x.remove("from")
-            x.remove("the")
-            x.remove("group")
-    print removals
-    return removals
-
-
-def write_output(posts_per_person, likes_per_person, data_name):
-    final_data = []
-    for x in posts_per_person:
-        try:
-            posts = posts_per_person[x]
-            likes_total = likes_per_person[x]
-            try:
-                avg_likes = round(1.0*likes_total/posts, 2)
-            except ZeroDivisionError:
-                avg_likes = 0
-            final_data.append([x, posts, likes_total, avg_likes])
-        except KeyError:
-            pass
-
-    avg_high = 0
-    avg_low = 100000
-    avg_guy = ''
-    avg_shit = ''
-    for x in final_data:
-        if x[3] > avg_high:
-            avg_high = x[3]
-            avg_guy = x[0]
-        elif 0 < x[3] <= avg_low and x[1] > 5 and x[0] != 'GroupMe':
-            avg_low = x[3]
-            avg_shit = x[0]
-
-    output = open(data_name + "analysis", "w")
-    output.write(avg_guy + " has the best average, with a value of " + str(avg_high) + " likes/post\n")
-    output.write(avg_shit + str(" has the worst average, at " + str(avg_low) + " likes per post\n\n"))
-    output.write("Name, Number of Posts, total likes, avg posts/like\n")
-    for x in final_data:
-        output.write(str(x) + "\n")
-    output.close()
-
+    data = data_file.read().splitlines()
+    return_list = []
+    date_restriction = True
+    if not date_restriction:
+        for msg in data:
+            sub = msg.split(',')
+            if sub.__len__() == 6 and sub[4] == "":
+                return_list.append(sub)
+    else:
+        for msg in data:
+            sub = msg.split(",")
+            if sub.__len__() == 6 and sub[4] == "":
+                date = sub[2]
+                date = date.split("-")
+                if date[0] == "2017" and int(date[1]) >= 2:
+                    return_list.append(sub)
+    return return_list
 
 main()

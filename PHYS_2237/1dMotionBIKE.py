@@ -25,7 +25,7 @@ import matplotlib
 matplotlib.use('TkAgg')             # special code to make plots visible on Macintosh system
 import matplotlib.pyplot as plt     # get matplotlib plot functions
 import sys                          # used to get the number of command line arguments
-import  argparse                    # argument parser library
+import argparse                    # argument parser library
 import numpy as np                  # numerical functions library used by python
 import math as mp                   # used for the exponential function
 from scipy.integrate import odeint  # import only this single method for solving differential equations
