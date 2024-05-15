@@ -20,6 +20,7 @@
 
 import math
 import random
+import os
 
 try:
     import folium
@@ -264,7 +265,7 @@ def plot(position, intermediate_waypoint, desired_waypoint, positions_list, lat_
     map_file = folium.Map(
         location=(math.degrees(position[0]), math.degrees(position[1])),
         control_scale=True,
-        zoom_start=8,
+        zoom_start=12,
         tiles=tiles,
         attr=attribution
     )
@@ -280,22 +281,39 @@ def plot(position, intermediate_waypoint, desired_waypoint, positions_list, lat_
         'plane-up-solid.png',
         icon_anchor=(10, 10),
     )
-    initial_pos_marker = folium.Marker(
-        location=[math.degrees(position[0]), math.degrees(position[1])],
-    )
-    intermediate_pos_marker = folium.Marker(
-        location=[math.degrees(intermediate_waypoint[0]), math.degrees(intermediate_waypoint[1])]
-    )
-    final_pos_marker = folium.Marker(
-        location=[math.degrees(desired_waypoint[0]), math.degrees(desired_waypoint[1])]
-    )
 
     coordinates = []
+    plane_locations = []
+    plane_headings = []
     for x in range(0, positions_list.__len__() - 1):
         coordinates.append(
             [math.degrees(positions_list[x][0]),
              math.degrees(positions_list[x][1])]
         )
+        # Every 300 points, we save coordinates so we can draw a little plane and heading line
+        if (x%300 == 0):
+            plane_locations.append(
+                [math.degrees(positions_list[x][0]),
+                 math.degrees(positions_list[x][1])]
+            )
+            heading = (math.degrees(positions_list[x][2]) + 360) % 360
+            plane_headings.append(heading)
+    print(str(plane_headings))
+    plane1 = folium.Icon(icon="plane", color="pink", angle=int(plane_headings[0]))
+    plane2 = folium.Icon(icon="plane", color="green", angle=int(plane_headings[plane_headings.__len__()-1]))
+
+    initial_pos_marker = folium.Marker(
+        location=[math.degrees(position[0]), math.degrees(position[1])],
+        icon=plane1,
+    )
+    intermediate_pos_marker = folium.Marker(
+        location=[math.degrees(intermediate_waypoint[0]), math.degrees(intermediate_waypoint[1])],
+        icon=plane2
+    )
+    final_pos_marker = folium.Marker(
+        location=[math.degrees(desired_waypoint[0]), math.degrees(desired_waypoint[1])]
+    )
+
     turn_line = folium.PolyLine(
         locations=coordinates,
         color='purple',
@@ -331,6 +349,7 @@ def plot(position, intermediate_waypoint, desired_waypoint, positions_list, lat_
 
     map_file.save(filename)
     open(filename)
+    os.startfile(filename)
 
 
 def c_string(n, d=2):
