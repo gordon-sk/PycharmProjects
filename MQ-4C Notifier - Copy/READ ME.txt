@@ -1,0 +1,13 @@
+Hello Big Red! 
+
+Notifier.py is a python 3.12 script that provides time based notifications to AVPs at intervals of their choosing. Potential use cases include:
+
+	- Complying with the SOP instruction to take a detailed status of all master warning systems once an hour
+	- Tracking trends on a malfunctioning system
+	- Ensuring ICE DET detailed statuses are executed IAW NATOPS
+
+To utilize this script, simply double click on it. It will execute within a Python command shell window that can be safely minimized when not in use. To end the program, simply close the window by Xing it out. 
+
+If the script doesn't appear to be working as intended, right click on it, mouse down to "Open With..." and select Python 3.12.
+
+If you have bugs, suggestions, or want to lavish praise on the creator of this script, please email Gordon.s.kiesling.mil@us.navy.mil. 
