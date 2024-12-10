@@ -28,7 +28,8 @@ def main():
     label = get_label()
     winsound.Beep(659, 200)
 
-    print("All set. You can minimize this window or push it to the background. It will come to the foreground automatically when needed.")
+    print("All set. You can minimize this window or push it to the background. It will pop up into the foreground "
+          "automatically when needed.")
     winsound.Beep(880, 200)
 
     stop_event = threading.Event()
