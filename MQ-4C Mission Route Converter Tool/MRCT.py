@@ -22,13 +22,14 @@ from datetime import datetime, timezone  # for timestamping the output
 RED = "\033[31m"
 YELLOW = "\033[33m"
 BLACK_BG = "\033[40m"  # Black background
-BRIGHT_GREEN_TEXT = "\033[92m"  # Bright green text
-RESET = "\033[0m"  # Resets color back to default
+GREEN_TEXT = "\033[92m"  # Bright green text
+BLUE_TEXT = "\033[94m"  # Bright blue text
 os.system('color 0A')
 try:
     os.system('mode con: cols=175 lines=50')
 except Exception as e:
     print(f"Error resizing: {e}")
+
 
 # Gets the file name
 # Opens the file
@@ -91,14 +92,13 @@ def get_file():
                         f"and {len(csv_dict)}.\n")
                 else:
                     selected_file = csv_dict[choice_int]
-                    print("File selected: " + selected_file + "\n")
+                    print("File selected: " + YELLOW + selected_file + GREEN_TEXT + "\n")
                     return selected_file
             # Input has to be a number in the first place
             except ValueError:
                 print("Invalid input -- must be a number. Please try again.\n")
 
 
-# TODO: MTD copy paste support
 # FUNCTION get_current_pos()
 # Asks the user if they'd like to enter their current position, either manually or by copy and paste from the MTD.
 # Use cases: User is far stitched waypoint, user is maneuvering around weather
@@ -108,10 +108,11 @@ def get_file():
 #
 # Example copy/paste: location;33.8936117994102;31.1578366687186
 def get_current_pos():
-    print("\nOptional: Enter your current lat/long. Press enter to skip.")
-    print("You can right click on the MTD, hover over \"Tracks\", and click \"Copy location\", then paste it here with "
-          "CTRL + V.")
-    print("Alternatively, use the format on your PFD: XX:XX.XXN YYY:YY.YYE")
+    print("\nOptional: Enter your current lat/long. Press " + BLUE_TEXT + "Enter" + GREEN_TEXT + " to skip.")
+    print("You can right click on the " + BLUE_TEXT + "MTD" + GREEN_TEXT + ", hover over \"" + BLUE_TEXT + "Tracks"
+          + GREEN_TEXT + "\", click \"" + BLUE_TEXT + "Copy location" + GREEN_TEXT + "\", and paste it here with "
+          + BLUE_TEXT + "CTRL + V" + GREEN_TEXT + ".")
+    print("Alternatively, use the format on your PFD: " + BLUE_TEXT + "XX:XX.XXN YYY:YY.YYE" + GREEN_TEXT)
     pattern_1 = r"^\d{2}:\d{2}\.\d{2}[NS] \d{2,3}:\d{2}\.\d{2}[EW]$"
     pattern_2 = r"^LOCATION;-?[0-9]+\.[0-9]+;-?[0-9]+\.[0-9]+$"
 
@@ -120,11 +121,11 @@ def get_current_pos():
         current_pos = input("\nCurrent Pos: ").strip().upper()
         # If the user skips this step:
         if current_pos == "":
+            print("Current position entry skipped.")
             return None
         else:
             # manual entry option
             if re.match(pattern_1, current_pos):
-                print("Position recorded: " + current_pos.upper())
                 # we begin to turn it from a string into a tuple object compatible with the .kml creation process
                 lat, lon = current_pos.split(" ")
                 # we use regex to split the different parts of the latitude
@@ -153,6 +154,7 @@ def get_current_pos():
 
                 # Declare and return the tuple
                 current_pos_tuple = (lat_decimal, lon_decimal, 0)
+                print("Position recorded: " + BLUE_TEXT + str(current_pos_tuple) + GREEN_TEXT)
                 return current_pos_tuple
 
             # copy and paste option
@@ -160,6 +162,7 @@ def get_current_pos():
                 lat = float(current_pos.split(";")[1])
                 lon = float(current_pos.split(";")[2])
                 current_pos_tuple = (lat, lon, 0)
+                print("Position recorded: " + BLUE_TEXT + str(current_pos_tuple) + GREEN_TEXT)
                 return current_pos_tuple
             else:
                 print("Incorrect format detected. Please try again.\n")
@@ -193,7 +196,7 @@ def get_user_route(data):
                     route_name = row[3]
 
                 if row[0] == starting_waypoint:
-                    print("Starting waypoint found")
+                    print("Starting waypoint found: " + YELLOW + starting_waypoint + GREEN_TEXT)
                     waypoint_found = True
 
                 if waypoint_found:
@@ -205,7 +208,7 @@ def get_user_route(data):
                     # Pulling the altitude data... Kind of useless for now but why not?
                     altitude = 0
                     if not len(row[7].split('\n')) == 1:
-                        altitude = row[7].split('\n')[-1]
+                        altitude = row[7].split('\n')[-1].split(" ")[0]
 
                     # Regex patterns
                     coord_format_1 = r"[NS] \d{1,3} \d{2} \d{2}\.\d{2}"  # ex:     N 34 06 58.80
@@ -259,7 +262,7 @@ def get_user_route(data):
                                          " plan you are using at gordon.s.kiesling.mil@us.navy.mil")
 
                     if waypoint_comment[len(waypoint_comment) - 1] == "Touchdown":
-                        print("Touchdown point found: " + row[0] + ".")
+                        print("Touchdown point found: " + YELLOW + row[0] + GREEN_TEXT)
                         break
 
             if len(coord_dict) > 1:
@@ -296,8 +299,14 @@ def create_kml(coordinates, output_label):
     width = Element_Tree.SubElement(line_style, "width")
     width.text = "2"  # Line width
 
+    adjusted_coordinates = []
+    previous_lon = None
+
     # Iterate through the coordinates and create <Placemark> for each
     for i, (waypoint_name, (lat, lon, alt)) in enumerate(coordinates.items()):
+
+        if waypoint_name == "UA POS" and lat == 0 and lon == 0:
+            continue
 
         placemark = Element_Tree.SubElement(document, "Placemark")
 
@@ -320,6 +329,19 @@ def create_kml(coordinates, output_label):
         coord = Element_Tree.SubElement(point, "coordinates")
         coord.text = f"{lon},{lat},0"  # KML uses "lon,lat,alt" format
 
+        # We make a separate list to use later in the line section of the .kml.
+        # This is necessary because a .kml treats lines in linear order, so when crossing the International Date Line
+        # Westbound, it draws a line across almost the entire globe.
+        if previous_lon is not None:
+            # Calculate the difference between the current and previous longitude
+            delta_lon = lon - previous_lon
+            if delta_lon > 180:
+                lon -= 360  # Wrap westward
+            elif delta_lon < -180:
+                lon += 360  # Wrap eastward
+        adjusted_coordinates.append((lat, lon, alt))
+        previous_lon = lon
+
     # Add a LineString connecting the points
     line_placemark = Element_Tree.SubElement(document, "Placemark")
     line_name = Element_Tree.SubElement(line_placemark, "name")
@@ -331,7 +353,12 @@ def create_kml(coordinates, output_label):
     line_string = Element_Tree.SubElement(line_placemark, "LineString")
     line_coordinates = Element_Tree.SubElement(line_string, "coordinates")
     # Join the coordinates into a single string: lon,lat,alt for each point
-    line_coordinates.text = " ".join([f"{lon},{lat},{alt}" for (lat, lon, alt) in coordinates.values()])
+    # Here we use the adjusted_coordinates list, in order to avoid .kml long-line behavior
+    line_coordinates.text = " ".join([
+        f"{lon},{lat},{alt}"
+        for lat, lon, alt in adjusted_coordinates
+        if (lat, lon, alt) != (0, 0, 0)
+    ])
 
     # Convert the tree structure to a string
     tree = Element_Tree.ElementTree(kml)
@@ -345,7 +372,7 @@ def create_kml(coordinates, output_label):
     with open(file_name, "wb") as f:
         tree.write(f, encoding="utf-8", xml_declaration=True)
 
-    print("\n" + file_name + " created successfully.")
+    print("\n" + YELLOW + file_name + GREEN_TEXT + " created successfully.")
     print("If you are creating many .kml files, it is recommended to sort the file explorer by date/time to quickly "
           "identify the most recently generated file.\n")
 
