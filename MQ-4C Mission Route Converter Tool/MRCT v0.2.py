@@ -7,15 +7,15 @@
 # It is intended to be run on Python 3.12, and requires only native libraries to that Python distro.
 # If problems appear, I can probably be reached at gordon.s.kiesling.mil@us.navy.mil
 # If you're reading this on an MCS, edit this file at your own risk.
-
+import traceback
 import xml.etree.ElementTree as Element_Tree  # for constructing the .kml file
 import os  # for making the terminal window pretty colors
 import csv  # for parsing the .csv data the user will provide
+import json # For the working area data supplement
 import re  # For input sanitation
 import sys  # for buffer clearing to streamline user input
 from datetime import datetime, timezone  # for timestamping the output
 
-# TODO: Pretty colors : )
 # TODO: Maybe give the user the option to delete every csv and kml in the folder, if it's gotten crowded
 # TODO: Add working area coordinates
 
@@ -33,21 +33,27 @@ except Exception as e:
 
 # Gets the file name
 # Opens the file
+# Opens working areas data supplement
 # Pulls the relevant coordinates
 # Gets the user's current posit (optional) and inserts it into the coordinates list
 # Creates a kml out of the coordinates
 def main():
 
+    # User's file
     csv_file_name = get_file()
     with open(csv_file_name, mode='r', newline='', encoding='utf-8') as file:
         data = csv.reader(file)
         coordinates, route_name = get_user_route(data)
 
+    # Working area data supplement
+    with open("Working_Areas.json", 'r') as file:
+        working_area_data = json.load(file)
+
     if not route_name == "NOT FOUND":
         current_pos = get_current_pos()
         if current_pos is not None:
             coordinates["UA POS"] = current_pos
-        create_kml(coordinates, route_name)
+        create_kml(coordinates, working_area_data, route_name)
 
     sys.stdin.flush()  # clears the buffer -- lingering \n problems caused user to have to sometimes hit enter twice.
     input("Press enter to close window.")
@@ -283,9 +289,10 @@ def get_user_route(data):
 # Function takes the following inputs:
 # INPUT coordinates: a list object containing tuples representing coordinates the aircraft will fly-by.
 # INPUT output_label: a string representing the mission route specified by the user. The mission route is the "header"
+# INPUT working_area_data: hard data representing relevant airspace I have provided for inclusion in the kmls
 # for the specific subsection of the overall mission plan the aircraft has loaded.
 # Outputs: None. Once the file is created, the user can close the window.
-def create_kml(coordinates, output_label):
+def create_kml(coordinates, working_area_data, output_label):
     # Create the root element <kml> and its namespace
     kml = Element_Tree.Element("kml", xmlns="http://www.opengis.net/kml/2.2")
 
@@ -343,15 +350,15 @@ def create_kml(coordinates, output_label):
         adjusted_coordinates.append((lat, lon, alt))
         previous_lon = lon
 
-    # Add a LineString connecting the points
-    line_placemark = Element_Tree.SubElement(document, "Placemark")
-    line_name = Element_Tree.SubElement(line_placemark, "name")
-    line_name.text = "Path between Locations"
-    style = Element_Tree.SubElement(line_placemark, "styleUrl")
+    # Add a LineString connecting the waypoints
+    route_line_placemark = Element_Tree.SubElement(document, "Placemark")
+    line_name = Element_Tree.SubElement(route_line_placemark, "name")
+    line_name.text = "Aircraft route"
+    style = Element_Tree.SubElement(route_line_placemark, "styleUrl")
     style.text = "#lineStyle"  # Use the previously defined line style
 
     # Create <LineString> and its coordinates
-    line_string = Element_Tree.SubElement(line_placemark, "LineString")
+    line_string = Element_Tree.SubElement(route_line_placemark, "LineString")
     line_coordinates = Element_Tree.SubElement(line_string, "coordinates")
     # Join the coordinates into a single string: lon,lat,alt for each point
     # Here we use the adjusted_coordinates list, in order to avoid .kml long-line behavior
@@ -360,6 +367,36 @@ def create_kml(coordinates, output_label):
         for lat, lon, alt in adjusted_coordinates
         if (lat, lon, alt) != (0, 0, 0)
     ])
+
+    for i, (TFR_Name, TFR_coords) in enumerate(working_area_data.items()):
+        # Create a Placemark for the TFR
+        tfr_placemark = Element_Tree.SubElement(document, "Placemark")
+        tfr_name = Element_Tree.SubElement(tfr_placemark, "name")
+        tfr_name.text = f"TFR: {TFR_Name}"  # Label the TFR with its name/key
+
+        # Define the TFR polygon style (optional)
+        tfr_style = Element_Tree.SubElement(tfr_placemark, "Style")
+        poly_style = Element_Tree.SubElement(tfr_style, "PolyStyle")
+        poly_color = Element_Tree.SubElement(poly_style, "color")
+        poly_color.text = "7dff0000"  # Semi-transparent red (AABBGGRR format)
+        outline_style = Element_Tree.SubElement(tfr_style, "LineStyle")
+        outline_color = Element_Tree.SubElement(outline_style, "color")
+        outline_color.text = "ff0000ff"  # Blue outline
+        outline_width = Element_Tree.SubElement(outline_style, "width")
+        outline_width.text = "2"
+
+        # Create the <Polygon> element
+        polygon = Element_Tree.SubElement(tfr_placemark, "Polygon")
+        outer_boundary = Element_Tree.SubElement(polygon, "outerBoundaryIs")
+        linear_ring = Element_Tree.SubElement(outer_boundary, "LinearRing")
+        tfr_coordinates = Element_Tree.SubElement(linear_ring, "coordinates")
+
+        # Add the coordinates for the rectangle
+        # Ensure the polygon is closed by repeating the first corner at the end
+        tfr_coordinates.text = " ".join([
+            f"{lon},{lat},0"
+            for lat, lon in TFR_coords + [TFR_coords[0]]  # Repeat the first corner to close the polygon
+        ])
 
     # Convert the tree structure to a string
     tree = Element_Tree.ElementTree(kml)
@@ -384,5 +421,8 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"An error occurred: {e}")
+        print(f"{e.args}")
+        traceback.print_exc()
         print("Please send the details of this error to gordon.s.kiesling.mil@us.navy.mil")
+        print("Or... gordon.s.kiesling1@navy.smil.mil")
         input("Press Enter to exit...")
